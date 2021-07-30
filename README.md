@@ -72,9 +72,6 @@ ip-<your-ip-address>.<your-region>.compute.internal    Ready    <none>   3m2s   
 
 어떤 Pod이 생성되어 있는지 보려면 `kubectl get pods --all-namespaces -o wide` 명령을 입력합니다.
 
-## Kubernetes 설정 작성하기
-
-
 ## EKS 클러스터에 설정 적용하기
 
 일단 로컬에서 했던 것과 마찬가지로 `kubectl apply -f k8s/cluster_config.yaml` 명령을 입력합니다. 
@@ -104,6 +101,56 @@ ingress-backend   <none>   *       (random-address).elb.(your-region).amazonaws.
 ```
 
 웹 브라우저에서 접속해 보면, 바로 접속하지 못할 수도 있습니다. 조금만 기다렸다가 접속해 보면 됩니다.
+
+## EKS 클러스터에 NLB와 ACM 연동하기
+
+고정된 IP를 얻기 위해 NLB(Network Load Balancer)를 사용하고 있는데요. 여기에 HTTPS로 접속할 수 있도록 ACM 인증서를 사용해 보겠습니다. 
+
+ACM 인증서를 쓰신다면 아마도 도메인을 소유하고 계실 것입니다. 원하는 도메인에 대해 ACM 인증서 발급이 모두 끝났다고 가정하겠습니다.
+
+먼저 `k8s/deploy-tls-termination.yaml` 파일을 열어 수정합니다. 원본 파일의 주소는 다음과 같습니다. 
+
+```
+https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.48.1/deploy/static/provider/aws/deploy-tls-termination.yaml
+```
+
+* `proxy-real-ip-cidr`: 클러스터가 속한 VPC의 CIDR을 기준으로 수정합니다. 
+* `service.beta.kubernetes.io/aws-load-balancer-ssl-cert`: 발급 받은 ACM 인증서의 ARN을 입력합니다.
+
+원본 파일을 이용해서 배포하면 CLB를 이용하게 됩니다. NLB를 사용하기 위해 수정한 설정은 다음과 같습니다. 
+
+* `service.beta.kubernetes.io/aws-load-balancer-type: nlb`
+* `use-forwarded-headers: 'false'`: 해당 설정은 L7 로드밸런서를 사용할 때 필요한 설정입니다. 자세한 내용은 [문서](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#use-forwarded-headers)를 참고하세요.
+
+ACM을 쓰신다면 본인의 도메인을 설정하셨을 것입니다. `k8s/cluster_config.yaml` 파일을 열어 다음 내용을 수정합니다.
+
+```yaml
+spec:
+  rules:
+  - host: (your-domain)
+```
+
+그리고 다음 순서로 배포하면 됩니다. 
+
+```shell
+kubectl apply -f k8s/deploy-tls-termination.yaml
+kubectl apply -f k8s/cluster_config.yaml
+```
+
+조금 기다렸다가 Ingress 설정을 확인합니다. 
+
+```shell
+kubectl get ingress
+Warning: extensions/v1beta1 Ingress is deprecated in v1.14+, unavailable in v1.22+; use networking.k8s.io/v1 Ingress
+NAME              CLASS    HOSTS           ADDRESS                                            PORTS   AGE
+ingress-backend   <none>   (your-domain)   (random-address).elb.(your-region).amazonaws.com   80      3m41s
+```
+
+`your-domain`으로 설정한 도메인으로 접속할 때, `ADDRESS` 항목에 있는 로드 밸런서 주소로 접속하도록 도메인 설정을 변경합니다. 
+
+시간이 흐른 뒤 접속해 보면, 설정한 도메인으로 잘 접속되며 HTTPS로 접속되는 것을 알 수 있습니다.
+
+참고로 NLB에 ACM 인증서를 연동하는 기능은 **Kubernetes 1.15 버전부터 지원**한다고 합니다. ([출처](https://aws.amazon.com/ko/premiumsupport/knowledge-center/terminate-https-traffic-eks-acm/))
 
 ## 참고한 자료들
 
