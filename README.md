@@ -152,6 +152,20 @@ ingress-backend   <none>   (your-domain)   (random-address).elb.(your-region).am
 
 참고로 NLB에 ACM 인증서를 연동하는 기능은 **Kubernetes 1.15 버전부터 지원**한다고 합니다. ([출처](https://aws.amazon.com/ko/premiumsupport/knowledge-center/terminate-https-traffic-eks-acm/))
 
+## 정리하기
+
+```shell
+kubectl delete -f k8s/cluster_config.yaml
+
+# 기본적인 NGINX Ingress Controller를 올린 경우
+kubectl delete -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.47.0/deploy/static/provider/aws/deploy.yaml
+
+# NLB, ACM 연동을 진행한 경우
+kubectl delete -f k8s/deploy-tls-termination.yaml
+```
+
+그 다음에 생성한 EKS 클러스터를 정리하면 됩니다.
+
 ## 참고한 자료들
 
 * [Set up Ingress on Minikube with the NGINX Ingress Controller](https://kubernetes.io/docs/tasks/access-application-cluster/ingress-minikube/)
