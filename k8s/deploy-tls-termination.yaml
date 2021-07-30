@@ -43,7 +43,9 @@ data:
       return 308 https://$host$request_uri;
     }
   proxy-real-ip-cidr: XXX.XXX.XXX/XX  # TODO: Need to change
-  use-forwarded-headers: 'true'
+  # You need to set this configuration to 'false' because Ingress Controller runs behind NLB: 
+  # Check Documentation: https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#use-forwarded-headers
+  use-forwarded-headers: 'false'
 ---
 # Source: ingress-nginx/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -276,7 +278,7 @@ metadata:
     service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: 'true'
     service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:<your-region>:<your-account-id>:certificate/XXXXXX-XXXXXXX-XXXXXXX-XXXXXXXX # TODO: Need to change
     service.beta.kubernetes.io/aws-load-balancer-ssl-ports: https
-    service.beta.kubernetes.io/aws-load-balancer-type: elb
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
   labels:
     helm.sh/chart: ingress-nginx-3.34.0
     app.kubernetes.io/name: ingress-nginx
